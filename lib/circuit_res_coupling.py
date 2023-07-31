@@ -1,3 +1,5 @@
+import os
+import sys
 import numpy as np
 import scipy as sp
 import scipy.sparse as sparse
@@ -5,48 +7,59 @@ from scipy import constants
 import qutip as qt
 import qutip as qt
 import qutip.settings as settings
-from qutip.ui.progressbar import TextProgressBar as ProgressBar
+
+from lib.circuit_res_trans import circuit_res_trans
+
 settings.atol = 1e-12
 
 class circuit_res:
 
-    def __init__(self, Cc = [10e-15,10e-15], ng=0.5, Cr=150e-15, Lr=10e-9, mcut=10, transmon_list=[]):
+    def __init__(self, Cc = [10e-15, 10e-15], Cr=150e-15, Lr=10e-9, mcut=10, qubit_list=[]):
         self.Cc1 = Cc[0]
         self.Cc2 = Cc[1]
-        self.ng = ng
         self.res_Cr = Cr
         self.res_Lr = Lr
-        self.probe = transmon_list[0]
-        self.target = transmon_list[1]
-        self.ncut = self.probe.ncut
+        self.probe = qubit_list[0]
+        self.target = qubit_list[1]
         self.mcut = mcut
         self.Z0 = np.sqrt(self.res_Lr / self.res_Cr)
+        self.circ_res_probe = circuit_res_trans(self.Cc1, self.res_Cr, self.res_Lr, self.mcut, self.probe)
+        self.circ_res_target = circuit_res_trans(self.Cc2, self.res_Cr, self.res_Lr, self.mcut, self.target)
+        self.omega_exp = constants.hbar / np.sqrt(self.res_Lr * self.res_Cr)
 
         self.init_operator()
 
+    def print_params(self):
+        self.probe.print_params()
+        self.target.print_params()
+        print(f'wr:    {self.omega_exp * 1e-9 / constants.h} Ghz')
+        print(f'Cc1:    {self.Cc1 * 1e15} fF')
+        print(f'Cc2:    {self.Cc2 * 1e15} fF')
+        print(f'Cr:    {self.res_Cr * 1e15} fF')
+        print(f'Lr:    {self.res_Lr * 1e9} nH')
+        print(f'Z0:    {self.Z0} Ohm')
+
     def init_operator(self):
 
-        self.I_cb = qt.qeye(2 * self.ncut + 1)
-        self.I_fb = qt.qeye(self.mcut)
+        self.probe.init_operator()
+        self.target.init_operator()
 
-        self.q_op_cb = 2 * qt.charge(self.ncut)
-        self.qg_op_cb = 2 *self.ng * self.I_cb
-        self.e_iphi_op_cb =  qt.qdiags(np.ones(2*self.ncut), offsets=1)
+        self.I_fb = qt.qeye(self.mcut)
         self.creation_op_fb = qt.create(self.mcut)
         self.annihilation_op_fb = qt.destroy(self.mcut)
         self.q_op_fb = np.sqrt(constants.hbar / (2* self.Z0)) *1j * (self.creation_op_fb - self.annihilation_op_fb)
         self.phi_op_fb = np.sqrt(constants.hbar * self.Z0 * 0.5) * (self.creation_op_fb + self.annihilation_op_fb)
 
-        self.q1_q1_op_qrq = qt.tensor([self.q_op_cb * self.q_op_cb, self.I_fb, self.I_fb, self.I_cb])
-        self.q1_q2_op_qrq = qt.tensor([self.q_op_cb, self.q_op_fb * self.q_op_fb, self.I_fb, self.I_cb])
-        self.q1_q3_qrq = qt.tensor([self.q_op_cb, self.q_op_fb, self.q_op_fb, self.I_cb])
-        self.q1_q4_qrq = qt.tensor([self.q_op_cb, self.q_op_fb, self.I_fb, self.q_op_cb])
-        self.q2_q2_qrq = qt.tensor([self.I_cb, self.q_op_fb * self.q_op_fb, self.I_fb, self.I_cb])
-        self.q2_q3_qrq = qt.tensor([self.I_cb, self.q_op_fb, self.q_op_fb, self.I_cb])
-        self.q2_q4_qrq = qt.tensor([self.I_cb, self.q_op_fb, self.I_fb, self.q_op_cb])
-        self.q3_q3_qrq = qt.tensor([self.I_cb, self.I_fb, self.q_op_fb * self.q_op_fb, self.I_cb])
-        self.q3_q4_qrq = qt.tensor([self.I_cb, self.I_fb, self.q_op_fb, self.q_op_cb])
-        self.q4_q4_qrq = qt.tensor([self.I_cb, self.I_fb, self.I_fb, self.q_op_cb * self.q_op_cb])
+        self.q1_q1_op_qrq = qt.tensor([4 * constants.e **2 * (self.probe.n_cb + self.probe.ng_cb * self.probe.n_cb + self.probe.ng_cb), self.I_fb, self.I_fb, self.target.I_cb])
+        self.q1_q2_op_qrq = qt.tensor([2 * constants.e * (self.probe.n_cb + self.probe.ng_cb), self.q_op_fb * self.q_op_fb, self.I_fb, self.target.I_cb])
+        self.q1_q3_qrq = qt.tensor([2 * constants.e * (self.probe.n_cb + self.probe.ng_cb), self.q_op_fb, self.q_op_fb, self.target.I_cb])
+        self.q1_q4_qrq = qt.tensor([2 * constants.e * (self.probe.n_cb + self.probe.ng_cb), self.q_op_fb, self.I_fb, 2 * constants.e * (self.target.n_cb + self.target.ng_cb)])
+        self.q2_q2_qrq = qt.tensor([self.probe.I_cb, self.q_op_fb * self.q_op_fb, self.I_fb, self.target.I_cb])
+        self.q2_q3_qrq = qt.tensor([self.probe.I_cb, self.q_op_fb, self.q_op_fb, self.target.I_cb])
+        self.q2_q4_qrq = qt.tensor([self.probe.I_cb, self.q_op_fb, self.I_fb, 2 * constants.e * (self.target.n_cb + self.target.ng_cb)])
+        self.q3_q3_qrq = qt.tensor([self.probe.I_cb, self.I_fb, self.q_op_fb * self.q_op_fb, self.target.I_cb])
+        self.q3_q4_qrq = qt.tensor([self.probe.I_cb, self.I_fb, self.q_op_fb, 2 * constants.e * (self.target.n_cb + self.target.ng_cb)])
+        self.q4_q4_qrq = qt.tensor([self.probe.I_cb, self.I_fb, self.I_fb, 4 * constants.e **2 * (self.target.n_cb + self.target.ng_cb) * (self.target.n_cb + self.target.ng_cb)])
 
         self.q2_q2_r = qt.tensor([self.q_op_fb * self.q_op_fb, self.I_fb])
         self.q2_q3_r = qt.tensor([self.q_op_fb, self.q_op_fb])
@@ -75,48 +88,47 @@ class circuit_res:
         kin += 2*C_mat_inv[2][3] * self.q3_q4_qrq
         kin += C_mat_inv[3][3] * self.q4_q4_qrq
 
-        kin *= 0.5*constants.e*constants.e
+        kin *= 0.5
         return kin
 
     def get_potential_circuit(self):
         self.init_operator()
 
-        pot = -self.probe.Ej * 0.5 * qt.tensor([self.e_iphi_op_cb + self.e_iphi_op_cb.trans(), self.I_fb, self.I_fb, self.I_cb])
-        pot += -self.target.Ej * 0.5 * qt.tensor([self.I_cb, self.I_fb, self.I_fb, self.e_iphi_op_cb + self.e_iphi_op_cb.trans()])
-        pot += self.probe.Ej * qt.tensor([self.I_cb, self.I_fb, self.I_fb, self.I_cb])
-        pot += self.target.Ej * qt.tensor([self.I_cb, self.I_fb, self.I_fb, self.I_cb])
-        pot += 0.5 * self.res_Lr**-1 * qt.tensor([self.I_cb, self.phi_op_fb * self.phi_op_fb, self.I_fb, self.I_cb])
-        pot += 0.5 * self.res_Lr**-1 * qt.tensor([self.I_cb, self.I_fb, self.phi_op_fb * self.phi_op_fb, self.I_cb])
-        pot += -self.res_Lr**-1 * qt.tensor([self.I_cb, self.phi_op_fb, self.phi_op_fb, self.I_cb])
+        pot = -self.probe.Ej * 0.5 * qt.tensor([self.probe.e_iphi_op_cb + self.probe.e_iphi_op_cb.trans(), self.I_fb, self.I_fb, self.target.I_cb])
+        pot += -self.target.Ej * 0.5 * qt.tensor([self.probe.I_cb, self.I_fb, self.I_fb, self.target.e_iphi_op_cb + self.target.e_iphi_op_cb.trans()])
+        pot += self.probe.Ej * qt.tensor([self.probe.I_cb, self.I_fb, self.I_fb, self.target.I_cb])
+        pot += self.target.Ej * qt.tensor([self.probe.I_cb, self.I_fb, self.I_fb, self.target.I_cb])
+        pot += 0.5 * self.res_Lr**-1 * qt.tensor([self.probe.I_cb, self.phi_op_fb * self.phi_op_fb, self.I_fb, self.target.I_cb])
+        pot += 0.5 * self.res_Lr**-1 * qt.tensor([self.probe.I_cb, self.I_fb, self.phi_op_fb * self.phi_op_fb, self.target.I_cb])
+        pot += -self.res_Lr**-1 * qt.tensor([self.probe.I_cb, self.phi_op_fb, self.phi_op_fb, self.target.I_cb])
 
         return pot
 
     def get_kinetic_probe(self):
         self.init_operator()
-        settings.atol = 1e-12  # Adjust this value to your desired tolerance level
-        kin = 0.5 * constants.e *constants.e *((self.q_op_cb  ) * (self.q_op_cb  )) / (self.probe.C + self.Cc1)
+
+        kin = self.probe.get_kinetic()
+
         return kin
 
     def get_potential_probe(self):
         self.init_operator()
 
-        potential = self.probe.Ej * self.I_cb
-        potential += -self.probe.Ej * (self.e_iphi_op_cb + self.e_iphi_op_cb.trans())
+        potential = self.probe.get_potential()
         
         return potential
 
     def get_kinetic_target(self):
         self.init_operator()
 
-        kin = 0.5 *constants.e * constants.e *(self.q_op_cb * self.q_op_cb) / (self.target.C + self.Cc2)
+        kin = self.target.get_kinetic()
         
         return kin
 
     def get_potential_target(self):
         self.init_operator()
 
-        potential = self.target.Ej * self.I_cb
-        potential += -self.target.Ej * (self.e_iphi_op_cb + self.e_iphi_op_cb.trans())
+        potential = self.target.get_potential()
         
         return potential
 
@@ -134,7 +146,7 @@ class circuit_res:
         kin += 2*C_mat_inv[0][1] * self.q2_q3_r
         kin += C_mat_inv[1][1] * self.q3_q3_r
 
-        kin *= 0.5*constants.e **2
+        kin *= 0.5
 
         return kin
 
@@ -150,19 +162,25 @@ class circuit_res:
     ## GET H ##
 
     def get_H_circuit(self):
+
         self.H_circuit = self.get_kinetic_circuit() + self.get_potential_circuit()
+
         return self.H_circuit
 
     def get_H_probe(self):
+
         self.H_probe = self.get_kinetic_probe() + self.get_potential_probe()
+
         return self.H_probe
 
     def get_H_target(self):
+
         self.H_target = self.get_kinetic_target() + self.get_potential_target()
 
         return self.H_target
 
     def get_H_resonator(self):
+
         self.H_resonator = self.get_kinetic_resonator() + self.get_potential_resonator()
 
         return self.H_resonator
@@ -204,7 +222,7 @@ class circuit_res:
             except AttributeError:
                 self.get_H_target()
         
-        self.eig_values_target, self.eig_vectors_target = self.H_target.eigenstates(eigvals = 4, sparse=True)
+        self.eig_values_target, self.eig_vectors_target = self.H_target.eigenstates(eigvals = 10, sparse=True)
 
         return self.eig_values_target, self.eig_vectors_target
 
@@ -251,34 +269,70 @@ class circuit_res:
                 for k in range(len(self.eig_vectors_resonator)):
                     self.state_product_ebebfb[i,k,j] = qt.tensor([self.eig_vectors_probe[i],self.fock_states_res[k], self.eig_vectors_target[j]])
 
-    ## CALCULATION ##
-
-    def get_U_circuit(self, update=False):
+    ## CALCULATION OF J matrix element ##
+    def get_J(self, update=False):
         if update:
-            self.init_qubit_states(update=True)
+            self.diagonalise_probe(update=True)
+            self.diagonalise_target(update=True)
+            self.diagonalise_circuit(update=True)
+            self.diagonalise_resonator(update=True)
         else:
             try:
-                self.H_circuit
+                self.eig_values_probe
+                self.eig_values_target
+                self.eig_values_resonator
             except AttributeError:
-                self.get_H_circuit()
+                self.diagonalise_probe()
+                self.diagonalise_target()
+                self.diagonalise_circuit()
+                self.diagonalise_resonator()
 
-        self.U_raw = self.H_circuit - qt.tensor(self.H_probe, self.I_fb, self.I_fb, self.I_cb) - qt.tensor(self.I_cb, self.I_fb, self.I_fb, self.H_target) - qt.tensor([self.I_cb, self.H_resonator, self.I_cb])
+        self.omega_r = self.circ_res_probe.get_omega_res(update)
+        self.deltas_probe = self.circ_res_probe.get_deltas_transmon(update)
+        self.deltas_target = self.circ_res_target.get_deltas_transmon(update)
+        self.g_probe = self.circ_res_probe.get_g_transmon(update)
+        self.g_target = self.circ_res_target.get_g_transmon(update)
 
-        return self.U_raw
-
-    def reshape_U(self, update=False):
-        if update:
-            self.get_U_circuit(update=True)
-        else:
-            try:
-                self.U_raw
-            except AttributeError:
-                self.get_U_circuit()
+        self.J = np.zeros((len(self.eig_values_probe), len(self.eig_values_target)), dtype=complex)
+        print(1 / self.omega_r)
+        for i in range(len(self.eig_values_probe)):
+            for j in range(len(self.eig_values_target)):
+                self.J[i,j] = (1 / self.omega_r) * self.g_probe[i,i] * self.g_target[j,j].conj()
         
-        self.U_reshape = np.zeros((24,24))
-        for i in range(2):
-            for k in range(3):
-                for j in range(4):
-                    self.U_reshapre[i,k,j] = qt.tensor(self.eig_vectors_probe[i], self.fock_states_res[k], self.eig_vectors_target[j]).trans() * self.U_raw * qt.tensor(self.eig_vectors_probe[i], self.fock_states_res[k], self.eig_vectors_target[j])
+        return self.J
 
-        return self.U_reshape
+
+
+
+
+
+
+    # def get_U_circuit(self, update=False):
+    #     if update:
+    #         self.init_qubit_states(update=True)
+    #     else:
+    #         try:
+    #             self.H_circuit
+    #         except AttributeError:
+    #             self.get_H_circuit()
+
+    #     self.U_raw = self.H_circuit - qt.tensor(self.H_probe, self.I_fb, self.I_fb, self.I_cb) - qt.tensor(self.I_cb, self.I_fb, self.I_fb, self.H_target) - qt.tensor([self.I_cb, self.H_resonator, self.I_cb])
+
+    #     return self.U_raw
+
+    # def reshape_U(self, update=False):
+    #     if update:
+    #         self.get_U_circuit(update=True)
+    #     else:
+    #         try:
+    #             self.U_raw
+    #         except AttributeError:
+    #             self.get_U_circuit()
+        
+    #     self.U_reshape = np.zeros((24,24))
+    #     for i in range(2):
+    #         for k in range(3):
+    #             for j in range(4):
+    #                 self.U_reshapre[i,k,j] = qt.tensor(self.eig_vectors_probe[i], self.fock_states_res[k], self.eig_vectors_target[j]).trans() * self.U_raw * qt.tensor(self.eig_vectors_probe[i], self.fock_states_res[k], self.eig_vectors_target[j])
+
+    #     return self.U_reshape

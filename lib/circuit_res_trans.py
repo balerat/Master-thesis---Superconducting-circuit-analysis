@@ -13,7 +13,7 @@ class circuit_res_trans:
 
     def __init__(self, Cc, Cr, Lr, mcut, qubit):
 
-        self.qubit = qubit[0]
+        self.qubit = qubit
         self.Cc = Cc
         self.res_Cr = Cr
         self.res_Lr = Lr
