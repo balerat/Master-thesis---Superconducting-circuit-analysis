@@ -19,7 +19,8 @@ class circuit_res_trans:
         self.res_Lr = Lr
         self.mcut = mcut
         self.Z0 = np.sqrt(self.res_Lr / self.res_Cr)
-        
+        self.omega_exp = constants.hbar / np.sqrt(self.res_Lr * self.res_Cr)
+
         self.init_operator()
 
     def print_params(self):
@@ -29,6 +30,8 @@ class circuit_res_trans:
         print(f'Cr:    {self.res_Cr * 1e15} fF')
         print(f'Lr:    {self.res_Lr * 1e9} nH')
         print(f'Z0:    {self.Z0} Ohm')
+        print(f'wr:    {self.omega_exp * 1e-9 / constants.h} Ghz')
+
 
     def init_operator(self):
 
@@ -273,7 +276,7 @@ class circuit_res_trans:
     def get_omega_res_secondcalc(self, update=False):
         if update:
             self.diagonalise_qubit(update)
-            self.get_H_circuit(update)
+            self.get_H_circuit()
         else:
             try:
                 self.eig_values_qubit
@@ -294,7 +297,7 @@ class circuit_res_trans:
     def get_g_transmon(self, update=False):
         if update:
             self.diagonalise_qubit(update)
-            self.get_H_circuit(update)
+            self.get_H_circuit()
         else:
             try:
                 self.eig_values_qubit

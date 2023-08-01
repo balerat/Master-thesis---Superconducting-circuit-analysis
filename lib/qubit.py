@@ -18,10 +18,10 @@ class qubit:
     def print_params(self):
 
         self.diagonalize_H()
-        print(f'Ejp:    {self.Ej * 1e-9 / constants.h} GHz')
+        print(f'Ej:    {self.Ej * 1e-9 / constants.h} GHz')
         print(f'Ec:    {self.Ec * 1e-9 / constants.h} GHz')
         print(f'Cj:    {self.C * 1e15} fF')
-        print(f'Ejp/Ecp : {np.real(self.Ej/self.Ec)}')
+        print(f'Ej/Ec : {np.real(self.Ej/self.Ec)}')
         print(f'w_01:    {(self.evals[1] - self.evals[0]) * 1e-9 / constants.h} GHz')
         print(f'ng:    {self.ng}')
 

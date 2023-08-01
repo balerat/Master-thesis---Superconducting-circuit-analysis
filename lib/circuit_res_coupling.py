@@ -30,7 +30,9 @@ class circuit_res:
         self.init_operator()
 
     def print_params(self):
+        print("Probe ------------------")
         self.probe.print_params()
+        print("Target ------------------")
         self.target.print_params()
         print(f'wr:    {self.omega_exp * 1e-9 / constants.h} Ghz')
         print(f'Cc1:    {self.Cc1 * 1e15} fF')
@@ -294,10 +296,9 @@ class circuit_res:
         self.g_target = self.circ_res_target.get_g_transmon(update)
 
         self.J = np.zeros((len(self.eig_values_probe), len(self.eig_values_target)), dtype=complex)
-        print(1 / self.omega_r)
         for i in range(len(self.eig_values_probe)):
             for j in range(len(self.eig_values_target)):
-                self.J[i,j] = (1 / self.omega_r) * self.g_probe[i,i] * self.g_target[j,j].conj()
+                self.J[i,j] = (1 / self.omega_exp) * self.g_probe[i,i] * self.g_target[j,j].conj()
         
         return self.J
 
