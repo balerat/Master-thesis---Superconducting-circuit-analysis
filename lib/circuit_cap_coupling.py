@@ -107,7 +107,6 @@ class circuit_cap:
         self.init_operator()
 
         potential = self.target.get_potential()
-        
         return potential
 
     ## GET H ##

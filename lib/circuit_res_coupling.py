@@ -23,8 +23,7 @@ class circuit_res:
         self.target = qubit_list[1]
         self.mcut = mcut
         self.Z0 = np.sqrt(self.res_Lr / self.res_Cr)
-        self.circ_res_probe = circuit_res_trans(self.Cc1, self.res_Cr, self.res_Lr, self.mcut, self.probe)
-        self.circ_res_target = circuit_res_trans(self.Cc2, self.res_Cr, self.res_Lr, self.mcut, self.target)
+
         self.omega_exp = constants.hbar / np.sqrt(self.res_Lr * self.res_Cr)
 
         self.init_operator()
@@ -224,7 +223,7 @@ class circuit_res:
             except AttributeError:
                 self.get_H_target()
         
-        self.eig_values_target, self.eig_vectors_target = self.H_target.eigenstates(eigvals = 10, sparse=True)
+        self.eig_values_target, self.eig_vectors_target = self.H_target.eigenstates(eigvals = self.target.ncut, sparse=True)
 
         return self.eig_values_target, self.eig_vectors_target
 
@@ -237,7 +236,7 @@ class circuit_res:
             except AttributeError:
                 self.get_H_resonator()
         
-        self.eig_values_resonator, self.eig_vectors_resonator = self.H_resonator.eigenstates(eigvals = 3, sparse=True)
+        self.eig_values_resonator, self.eig_vectors_resonator = self.H_resonator.eigenstates(eigvals = self.mcut, sparse=True)
 
         return self.eig_values_resonator, self.eig_vectors_resonator
 
@@ -289,11 +288,13 @@ class circuit_res:
                 self.diagonalise_circuit()
                 self.diagonalise_resonator()
 
-        self.omega_r = self.circ_res_probe.get_omega_res(update)
-        self.deltas_probe = self.circ_res_probe.get_deltas_transmon(update)
-        self.deltas_target = self.circ_res_target.get_deltas_transmon(update)
-        self.g_probe = self.circ_res_probe.get_g_transmon(update)
-        self.g_target = self.circ_res_target.get_g_transmon(update)
+        self.circ_res_probe = circuit_res_trans(self.Cc1, self.res_Cr, self.res_Lr, self.mcut, self.probe)
+        self.circ_res_target = circuit_res_trans(self.Cc2, self.res_Cr, self.res_Lr, self.mcut, self.target)
+        self.omega_r = self.circ_res_probe.get_omega_res()
+        self.deltas_probe = self.circ_res_probe.get_deltas_transmon()
+        self.deltas_target = self.circ_res_target.get_deltas_transmon()
+        self.g_probe = self.circ_res_probe.get_g_transmon()
+        self.g_target = self.circ_res_target.get_g_transmon()
 
         self.J = np.zeros((len(self.eig_values_probe), len(self.eig_values_target)), dtype=complex)
         for i in range(len(self.eig_values_probe)):
@@ -302,7 +303,47 @@ class circuit_res:
         
         return self.J
 
+    def get_omega_probe(self, update=False):
+        if update:
+            self.diagonalise_probe(update=True)
+        else:
+            try:
+                self.eig_values_probe
+            except AttributeError:
+                self.diagonalise_probe()
+        
+        self.omega_probe = self.eig_values_probe[1] - self.eig_values_probe[0]
 
+        return self.omega_probe
+    
+    def get_omega_target(self, update=False):
+        if update:
+            self.diagonalise_target(update=True)
+        else:
+            try:
+                self.eig_values_target
+            except AttributeError:
+                self.diagonalise_target()
+
+        self.omega_target = self.eig_values_target[1] - self.eig_values_target[0]
+
+        return self.omega_target
+    
+    def get_detuning_pt(self, update=False):
+        if update:
+            self.get_omega_probe(update=True)
+            self.get_omega_target(update=True)
+        else:
+            try:
+                self.omega_probe
+                self.omega_target
+            except AttributeError:
+                self.get_omega_probe()
+                self.get_omega_target()
+
+        self.detuning_pt = self.omega_probe - self.omega_target
+
+        return self.detuning_pt
 
 
 

@@ -135,7 +135,7 @@ class circuit_res_trans:
             except AttributeError:
                 self.get_H_circuit()
 
-        self.eig_values_circuit, self.eig_vectors_circuit = self.H_circuit.eigenstates(eigvals = 10)
+        self.eig_values_circuit, self.eig_vectors_circuit = self.H_circuit.eigenstates(eigvals = self.qubit.ncut * self.mcut)
 
         return self.eig_values_circuit, self.eig_vectors_circuit
 
@@ -148,7 +148,7 @@ class circuit_res_trans:
             except AttributeError:
                 self.get_H_qubit()
 
-        self.eig_values_qubit, self.eig_vectors_qubit = self.H_qubit.eigenstates(eigvals = 10)
+        self.eig_values_qubit, self.eig_vectors_qubit = self.H_qubit.eigenstates(eigvals = self.qubit.ncut)
 
         return self.eig_values_qubit, self.eig_vectors_qubit
     
@@ -161,7 +161,7 @@ class circuit_res_trans:
             except AttributeError:
                 self.get_H_res()
 
-        self.eig_values_res, self.eig_vectors_res = self.H_res.eigenstates(eigvals = 10)
+        self.eig_values_res, self.eig_vectors_res = self.H_res.eigenstates(eigvals = self.mcut)
 
         return self.eig_values_res, self.eig_vectors_res
     
