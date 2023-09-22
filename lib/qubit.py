@@ -11,7 +11,7 @@ class qubit:
 
         self.Ej = Ej * constants.h
         self.C = np.sum(np.array(C))
-        self.Ec = constants.e**2 / (2 * self.C)
+        self.Ec = 4 * constants.e**2 / (2 * self.C)
         self.ng = ng
         self.ncut = ncut
 

@@ -345,6 +345,46 @@ class circuit_res:
 
         return self.detuning_pt
 
+    def get_J_forth(self, update=False):
+        if update:
+            self.diagonalise_probe(update=True)
+            self.diagonalise_target(update=True)
+            self.diagonalise_circuit(update=True)
+            self.diagonalise_resonator(update=True)
+        else:
+            try:
+                self.eig_values_probe
+                self.eig_values_target
+                self.eig_values_resonator
+            except AttributeError:
+                self.diagonalise_probe()
+                self.diagonalise_target()
+                self.diagonalise_circuit()
+                self.diagonalise_resonator()
+
+        self.circ_res_probe = circuit_res_trans(self.Cc1, self.res_Cr, self.res_Lr, self.mcut, self.probe)
+        self.circ_res_target = circuit_res_trans(self.Cc2, self.res_Cr, self.res_Lr, self.mcut, self.target)
+        self.omega_r = self.circ_res_probe.get_omega_res()
+        self.deltas_probe = self.circ_res_probe.get_deltas_transmon()
+        self.deltas_target = self.circ_res_target.get_deltas_transmon()
+        self.g_probe = self.circ_res_probe.get_g_transmon()
+        self.g_target = self.circ_res_target.get_g_transmon()
+
+        delta1 = self.omega_r - (self.probe.evals[1] - self.probe.evals[0])
+        delta2 = self.omega_r - (self.target.evals[1] - self.target.evals[0])
+
+
+
+        alpha1 = self.probe.Ec
+        alpha2 = self.target.Ec
+
+        g12 = self.g_probe[0,1]
+        p12 = self.g_target[0,1]
+        # print(delta1, delta2, alpha1, alpha2, g12, p12)
+        # print(type(delta1), type(delta2), type(alpha1), type(alpha2), type(g12), type(p12))
+        J = 2*g12**2*p12**2*(alpha1*alpha2*(delta1+delta2)**2+alpha1*delta1**2*(delta1+delta2)+alpha2*delta2**2*(delta1+delta2))/(delta1**2*delta2**2*(delta1+delta2)*(delta1-delta2)*(delta2-delta1))
+
+        return J
 
 
 
