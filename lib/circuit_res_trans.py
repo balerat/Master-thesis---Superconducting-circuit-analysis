@@ -5,13 +5,14 @@ import qutip as qt
 import qutip as qt
 import qutip.settings as settings
 from qutip.ui.progressbar import TextProgressBar as ProgressBar
-settings.atol = 1e-12
+
+settings.atol = 1e-12 # Setting the absolute tolerance for qutip
 
 class circuit_res_trans:
 
     ## INITIALIZATION ##
 
-    def __init__(self, Cc, Cr, Lr, mcut, qubit):
+    def __init__(self, Cc, Cr, Lr, mcut, qubit): # Ej in GHz, C in fF and ng is the offset charge in units of e (elementary charge)
 
         self.qubit = qubit
         self.Cc = Cc
@@ -23,7 +24,7 @@ class circuit_res_trans:
 
         self.init_operator()
 
-    def print_params(self):
+    def print_params(self): # Print the parameters of the qubit in a nice way
             
         self.qubit.print_params()
         print(f'Cc:    {self.Cc * 1e15} fF')
@@ -33,7 +34,7 @@ class circuit_res_trans:
         print(f'wr:    {self.omega_exp * 1e-9 / constants.h} Ghz')
 
 
-    def init_operator(self):
+    def init_operator(self): # Initialize the charge basis operators for the charge qubit
 
         self.qubit.init_operator()
 
@@ -192,7 +193,7 @@ class circuit_res_trans:
 
     ## QUBIT CAVITY COUPLIGN CALCULUS ##
 
-    def get_delta_qubit(self, update=False):
+    def get_delta_qubit(self, update=False): # Get the qubit frequency shift due to the cavity
         if update:
             self.get_states(update)
         else:
@@ -206,7 +207,7 @@ class circuit_res_trans:
 
         return self.delta_qubit
     
-    def get_omega_res(self, update=False):
+    def get_omega_res(self, update=False): # Get the cavity frequency shift due to the qubit
         if update:
             self.get_states(update)
         else:
@@ -221,7 +222,7 @@ class circuit_res_trans:
 
         return self.omega_res
     
-    def get_gparr(self, update=False):
+    def get_gparr(self, update=False): # Get the coupling between the qubit and the cavity in the parallel configuration
         if update:
             self.get_states(update)
         else:
@@ -235,7 +236,7 @@ class circuit_res_trans:
 
         return self.gparr
     
-    def get_gperp(self, update=False):
+    def get_gperp(self, update=False): # Get the coupling between the qubit and the cavity in the perpendicular configuration
         if update:
             self.get_states(update)
         else:

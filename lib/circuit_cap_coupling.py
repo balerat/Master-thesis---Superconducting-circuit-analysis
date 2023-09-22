@@ -4,13 +4,14 @@ from scipy import constants
 import qutip as qt
 import qutip as qt
 import qutip.settings as settings
-settings.atol = 1e-12
 
-class circuit_cap:
+settings.atol = 1e-12 # Setting the absolute tolerance for qutip
+
+class circuit_cap: # Class for the circuit capacitively coupled qubit
 
     ## INITIALIZATION ##
 
-    def __init__(self, Cc=3.1e-15, qubit_list=[]):
+    def __init__(self, Cc=3.1e-15, qubit_list=[]): # Cc in fF and qubit_list is a list of qubit objects (probe, target)
 
         self.qubit_list = qubit_list
         self.Cc = Cc
@@ -18,9 +19,9 @@ class circuit_cap:
         self.target = self.qubit_list[1]
         self.ncut = self.probe.ncut
 
-        self.init_operator()
+        self.init_operator() # Initialize the charge basis operators for the circuit qubit
 
-    def print_params(self):
+    def print_params(self): # Print the parameters of the qubit in a nice way
 
         self.get_detunning(update=True)
         print(f'Ejp:    {self.probe.Ej * 1e-9 / constants.h} GHz')
@@ -29,27 +30,21 @@ class circuit_cap:
         print(f'Ejp/Ecp probe: {np.real(self.probe.Ej/self.probe.Ec)}')
         print(f'w_probe:    {self.omega_probe * 1e-9 / constants.h} GHz')
         print(f'ng probe:    {self.probe.ng}')
-
         print(f'Ejt:    {self.target.Ej * 1e-9 / constants.h} GHz')
         print(f'Ec:    {self.target.Ec * 1e-9 / constants.h} GHz')
         print(f'Cjt:    {self.target.C* 1e15} fF')
         print(f'Ejt/Ect target: {np.real(self.target.Ej/self.target.Ec)}')
         print(f'w_target:    {self.omega_target * 1e-9 / constants.h} GHz')
         print(f'ng target:    {self.target.ng}')
-
         print(f'detunning:    {self.detunning * 1e-9 / constants.h} GHz')
-
         print(f'Cc:    {self.Cc * 1e15} fF')
 
-    def init_operator(self):
+    def init_operator(self): # Initialize the charge basis operators for the circuit qubit
         self.probe.init_operator()
         self.target.init_operator()
-
         self.I_cb = self.probe.I_cb  # Identity for qubit (charge basis)
-
         self.q_op_cb = self.probe.n_cb           # Charge operator (charge basis)
         self.e_iphi_op_cb = sp.sparse.diags(np.ones(2 * self.ncut, dtype=np.complex_), offsets=1)
-
         self.q1_q1 = qt.tensor((self.probe.n_cb + self.probe.ng_cb) * (self.probe.n_cb + self.probe.ng_cb), self.target.I_cb)
         self.q1_q2 = qt.tensor((self.probe.n_cb + self.probe.ng_cb), (self.target.n_cb + self.target.ng_cb))
         self.q2_q2 = qt.tensor(self.probe.I_cb, (self.target.n_cb + self.target.ng_cb) * (self.target.n_cb + self.target.ng_cb))
@@ -62,7 +57,7 @@ class circuit_cap:
         C_mat = [
             [self.probe.C + self.Cc, -self.Cc],
             [-self.Cc, self.target.C + self.Cc]
-        ]
+        ] # Capacitance matrix
 
         C_mat_inverse = np.linalg.inv(C_mat)
         
@@ -70,7 +65,7 @@ class circuit_cap:
         kin += 2 * C_mat_inverse[0][1] * self.q1_q2
         kin += C_mat_inverse[1][1] * self.q2_q2
 
-        kin *= 4 * 0.5 * constants.e **2
+        kin *= 4 * 0.5 * constants.e **2 
 
         return kin
 
@@ -206,7 +201,7 @@ class circuit_cap:
         #     for j in range(2 * self.ncut + 1):
         #         self.state_product_ebcb.append(sp.sparse.kron(self.eig_vectors_probe[i], c.T).T)
 
-    def get_omega_probe(self, update=False):
+    def get_omega_probe(self, update=False): # Get the frequency of the probe qubit
         if update:
             self.diagonalise_probe(update=True)
         else:
@@ -220,7 +215,7 @@ class circuit_cap:
 
         return self.omega_probe
     
-    def get_omega_target(self, update=False):
+    def get_omega_target(self, update=False): # Get the frequency of the target qubit
         if update:
             self.diagonalise_target(update=True)
         else:
@@ -233,7 +228,7 @@ class circuit_cap:
 
         return self.omega_target
     
-    def get_detunning(self, update=False):
+    def get_detunning(self, update=False): # Get the detunning between the probe and target qubit
         if update:
             self.get_omega_probe(update=True)
             self.get_omega_target(update=True)
